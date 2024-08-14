@@ -22,7 +22,7 @@ LABEL_ANNOTATOR = sv.LabelAnnotator()
 
 folder_paths.folder_names_and_paths["yolo_world"] = ([os.path.join(folder_paths.models_dir, "yolo_world")], folder_paths.supported_pt_extensions)
 
-
+hf_mirror_url = "https://hf-mirror.com/"
 
 is_huggingface_reachable = None
 def check_hf_reachability():
@@ -114,20 +114,24 @@ class ESAM_ModelLoader_Zho:
     CATEGORY = "🔎YOLOWORLD_ESAM"
   
     def load_esam_model(self, device):
-        hf_reachable = check_hf_reachability()
+        
         if device == "CUDA":
             model_path = os.path.join(current_directory, "efficient_sam_s_gpu.jit")
-            if hf_reachable:
-                url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_gpu.jit'
-            else:
-                url = 'https://hf-mirror.com/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_gpu.jit'
+            url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_gpu.jit'
         else:
             model_path = os.path.join(current_directory, "efficient_sam_s_cpu.jit")
-            if hf_reachable:
-                url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_cpu.jit'
-            else:
-                url = 'https://hf-mirror.com/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_cpu.jit'
+            url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_cpu.jit'
+
         if not os.path.exists(model_path):
+            hf_reachable = check_hf_reachability()
+            if hf_reachable:
+                url = url
+            else:
+                if "huggingface.co" in url:
+                    url = url.replace("https://huggingface.co/", hf_mirror_url)
+                else:
+                    url = url
+            
             print(f"Downloading {url}\nto {model_path}")
             download_url(url, current_directory)            
             
@@ -166,13 +170,23 @@ class Yoloworld_ESAM_Zho:
     CATEGORY = "🔎YOLOWORLD_ESAM"
                        
     def yoloworld_esam_image(self, image, yolo_world_model, esam_model, categories, confidence_threshold, iou_threshold, box_thickness, text_thickness, text_scale, with_segmentation, mask_combined, with_confidence, with_class_agnostic_nms, mask_extracted, mask_extracted_index):
-        categories = process_categories(categories)
+        lines = categories.splitlines()
+        processed_lines = []
+        for line in lines:
+            stripped_line = line.strip()
+            # 如果行尾没有逗号，则添加逗号
+            if stripped_line and not stripped_line.endswith(','):
+                stripped_line += ','
+            processed_lines.append(stripped_line)
+        regularity_categories = '\n'.join(processed_lines)
+        
+        regularity_categories = process_categories(regularity_categories)
         processed_images = []
         processed_masks = []
         for img in image:
             img = np.clip(255. * img.cpu().numpy().squeeze(), 0, 255).astype(np.uint8)          
             YOLO_WORLD_MODEL = yolo_world_model
-            YOLO_WORLD_MODEL.set_classes(categories)
+            YOLO_WORLD_MODEL.set_classes(regularity_categories)
             results = YOLO_WORLD_MODEL.infer(img, confidence=confidence_threshold)
             detections = sv.Detections.from_inference(results)
             detections = detections.with_nms(
@@ -212,7 +226,7 @@ class Yoloworld_ESAM_Zho:
             output_image = annotate_image(
                 input_image=output_image,
                 detections=detections,
-                categories=categories,
+                categories=regularity_categories,
                 with_confidence=with_confidence,
                 thickness=box_thickness,
                 text_thickness=text_thickness,
