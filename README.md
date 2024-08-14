@@ -1,3 +1,10 @@
+2024-8-15:  
+Added automatic downloading for the efficient_sam model; fixed the issue where detection fails if there is no comma at the end of the text input.
+
+![PixPin_2024-08-15_05-07-18](https://github.com/user-attachments/assets/1fc3e942-6c99-4329-b734-0b3dfa34253c)
+
+
+---
 
 ![ywes_](https://github.com/ZHO-ZHO-ZHO/ComfyUI-YoloWorld-EfficientSAM/assets/140084057/fff48236-8feb-48d6-946e-ba429111427f)
 
