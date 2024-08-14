@@ -7,6 +7,8 @@ import supervision as sv
 import torch
 from tqdm import tqdm
 from inference.models import YOLOWorld
+import requests
+from torchvision.datasets.utils import download_url
 
 from .utils.efficient_sam import load, inference_with_boxes
 from .utils.video import generate_file_name, calculate_end_frame_index, create_directory
@@ -19,6 +21,23 @@ MASK_ANNOTATOR = sv.MaskAnnotator()
 LABEL_ANNOTATOR = sv.LabelAnnotator()
 
 folder_paths.folder_names_and_paths["yolo_world"] = ([os.path.join(folder_paths.models_dir, "yolo_world")], folder_paths.supported_pt_extensions)
+
+
+
+is_huggingface_reachable = None
+def check_hf_reachability():
+    # 检查 Hugging Face 网站是否可访问，并将结果存储在全局变量中
+    global is_huggingface_reachable
+    if is_huggingface_reachable is None:  # 只在第一次调用时进行检查
+        try:
+            response = requests.get("https://huggingface.co", timeout=2)
+            response.raise_for_status()
+            is_huggingface_reachable = True
+        except requests.RequestException:
+            is_huggingface_reachable = False
+            print("Failed to connect to the HuggingFace network, attempting to use a mirror URL.")
+    return is_huggingface_reachable
+
 
 def process_categories(categories: str) -> List[str]:
     return [category.strip() for category in categories.split(',')]
@@ -67,6 +86,11 @@ class Yoloworld_ModelLoader_Zho:
     CATEGORY = "🔎YOLOWORLD_ESAM"
   
     def load_yolo_world_model(self, yolo_world_model):
+        YOLO_WORLD_MODEL = YOLOWorld()
+        model_path = YOLO_WORLD_MODEL.cache_file("yolo-world.pt")
+        absolute_model_path = os.path.abspath(model_path)
+        print(f"The model file will be cached to: {absolute_model_path}")
+        
         YOLO_WORLD_MODEL = YOLOWorld(model_id=yolo_world_model)
 
         return [YOLO_WORLD_MODEL]
@@ -90,10 +114,22 @@ class ESAM_ModelLoader_Zho:
     CATEGORY = "🔎YOLOWORLD_ESAM"
   
     def load_esam_model(self, device):
+        hf_reachable = check_hf_reachability()
         if device == "CUDA":
             model_path = os.path.join(current_directory, "efficient_sam_s_gpu.jit")
+            if hf_reachable:
+                url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_gpu.jit'
+            else:
+                url = 'https://hf-mirror.com/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_gpu.jit'
         else:
             model_path = os.path.join(current_directory, "efficient_sam_s_cpu.jit")
+            if hf_reachable:
+                url = 'https://huggingface.co/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_cpu.jit'
+            else:
+                url = 'https://hf-mirror.com/camenduru/YoloWorld-EfficientSAM/resolve/main/efficient_sam_s_cpu.jit'
+        if not os.path.exists(model_path):
+            print(f"Downloading {url}\nto {model_path}")
+            download_url(url, current_directory)            
             
         EFFICIENT_SAM_MODEL = torch.jit.load(model_path)
 
