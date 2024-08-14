@@ -86,12 +86,10 @@ class Yoloworld_ModelLoader_Zho:
     CATEGORY = "🔎YOLOWORLD_ESAM"
   
     def load_yolo_world_model(self, yolo_world_model):
-        YOLO_WORLD_MODEL = YOLOWorld()
+        YOLO_WORLD_MODEL = YOLOWorld(model_id=yolo_world_model)
         model_path = YOLO_WORLD_MODEL.cache_file("yolo-world.pt")
         absolute_model_path = os.path.abspath(model_path)
         print(f"The model file will be cached to: {absolute_model_path}")
-        
-        YOLO_WORLD_MODEL = YOLOWorld(model_id=yolo_world_model)
 
         return [YOLO_WORLD_MODEL]
         
